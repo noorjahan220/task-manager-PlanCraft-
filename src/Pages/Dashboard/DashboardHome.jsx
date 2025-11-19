@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback, useContext } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import Swal from 'sweetalert2';
-import { Link } from 'react-router-dom'; 
+import { Link } from 'react-router-dom';
 import useAxiosPublic from '../../Hooks/UseAxiosPublic';
 import { AuthContext } from '../../Provider/AuthProvider';
 import { FaArrowUp, FaPlus, FaEllipsisH, FaCheckCircle } from 'react-icons/fa';
@@ -8,85 +8,28 @@ import { FaArrowUp, FaPlus, FaEllipsisH, FaCheckCircle } from 'react-icons/fa';
 const DashboardHome = () => {
     const axiosPublic = useAxiosPublic();
     const { user } = useContext(AuthContext);
-    
-    // Stats state
     const [stats, setStats] = useState({ 
         totalProjects: 0, 
         totalTasks: 0, 
+        workload: [], 
         logs: [] 
     });
-    
-    // New state to hold the merged list of ALL members + their task counts
-    const [fullWorkload, setFullWorkload] = useState([]); 
     const [loading, setLoading] = useState(true);
     const [rebalancing, setRebalancing] = useState(false);
 
-    // --- DATA FETCHING & MERGING ---
-    const fetchData = useCallback(async () => {
+    // --- LOGIC (UNCHANGED) ---
+    const fetchStats = () => {
         if (!user?.email) return;
+        axiosPublic.get(`/api/dashboard/stats?email=${user.email}`)
+            .then(res => { 
+                setStats(res.data); 
+                setLoading(false); 
+            })
+            .catch(err => { console.error(err); setLoading(false); });
+    };
 
-        try {
-            // 1. Fetch Stats (Tasks counts, Projects, Logs)
-            const statsReq = axiosPublic.get(`/api/dashboard/stats?email=${user.email}`);
-            // 2. Fetch Teams (To get ALL members, even those with 0 tasks)
-            const teamsReq = axiosPublic.get(`/api/teams?email=${user.email}`);
+    useEffect(() => { fetchStats(); }, [user]);
 
-            const [statsRes, teamsRes] = await Promise.all([statsReq, teamsReq]);
-
-            const statsData = statsRes.data;
-            const teamsData = teamsRes.data;
-
-            setStats(statsData);
-
-            // 3. MERGE LOGIC: 
-            // Extract all members from the user's team(s)
-            let allMembers = [];
-            if (teamsData.length > 0) {
-                // Flatten members from all teams the user manages
-                teamsData.forEach(team => {
-                    if (team.members) {
-                        allMembers = [...allMembers, ...team.members];
-                    }
-                });
-            }
-
-            // Create a map of actual active tasks from the stats API
-            // statsData.workload contains only people with tasks
-            const activeWorkloadMap = {};
-            if (statsData.workload) {
-                statsData.workload.forEach(item => {
-                    // Map by name (or _id if available)
-                    const key = item.name || item._id;
-                    activeWorkloadMap[key] = item.count || item.taskCount || 0;
-                });
-            }
-
-            // Combine: Team Member Data + Active Task Count
-            const mergedWorkload = allMembers.map(member => {
-                return {
-                    ...member, // name, role, capacity, etc.
-                    // If they exist in the stats, use that count, otherwise 0
-                    count: activeWorkloadMap[member.name] || 0 
-                };
-            });
-
-            // Remove duplicates if any (based on name)
-            const uniqueWorkload = Array.from(new Map(mergedWorkload.map(item => [item.name, item])).values());
-
-            setFullWorkload(uniqueWorkload);
-            setLoading(false);
-
-        } catch (err) {
-            console.error("Dashboard Fetch Error:", err);
-            setLoading(false);
-        }
-    }, [axiosPublic, user]);
-
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
-
-    // --- REASSIGN LOGIC ---
     const handleReassign = () => {
         Swal.fire({
             title: 'Auto-Reassign Tasks?',
@@ -99,15 +42,13 @@ const DashboardHome = () => {
             if (result.isConfirmed) {
                 setRebalancing(true);
                 axiosPublic.post('/api/dashboard/rebalance', { email: user.email })
-                    .then(res => { 
-                        Swal.fire('Success', res.data.message, 'success'); 
-                        fetchData(); // Refresh data
-                    })
+                    .then(res => { Swal.fire('Success', res.data.message, 'success'); fetchStats(); })
                     .catch(() => Swal.fire('Error', 'Failed', 'error'))
                     .finally(() => setRebalancing(false));
             }
         });
     };
+    // --- END LOGIC ---
 
     if (loading) return <div className="p-10 text-center"><span className="loading loading-spinner text-[#105144]"></span></div>;
 
@@ -115,6 +56,7 @@ const DashboardHome = () => {
         <div className="space-y-6 md:space-y-8 font-sans">
             
             {/* 1. PAGE HEADER */}
+            {/* Responsive: Stacks vertically on mobile, row on desktop */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                 <div className="w-full md:w-auto">
                     <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-1">Dashboard</h2>
@@ -131,16 +73,13 @@ const DashboardHome = () => {
             </div>
 
             {/* 2. STATS CARDS ROW */}
+            {/* Responsive: 1 col mobile, 2 col tablet, 4 col desktop */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
-                
-                {/* Card 1: Dark Green (Total Projects) */}
-                <Link 
-                    to="/dashboard/projects" 
-                    className="bg-[#105144] rounded-[30px] p-6 text-white relative overflow-hidden shadow-xl shadow-green-900/10 group block transition-transform hover:scale-[1.02] cursor-pointer"
-                >
+                {/* Card 1: Dark Green */}
+                <div className="bg-[#105144] rounded-[30px] p-6 text-white relative overflow-hidden shadow-xl shadow-green-900/10 group">
                     <div className="flex justify-between items-start mb-6">
                         <span className="text-sm font-medium opacity-90">Total Projects</span>
-                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm group-hover:bg-white/30 transition-colors">
+                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
                             <FaArrowUp className="text-xs rotate-45" />
                         </div>
                     </div>
@@ -149,7 +88,7 @@ const DashboardHome = () => {
                         <span className="bg-white/20 px-1.5 py-0.5 rounded text-white">5+</span>
                         <span>Increased from last month</span>
                     </div>
-                </Link>
+                </div>
 
                 {/* Card 2: White */}
                 <div className="bg-white rounded-[30px] p-6 text-slate-800 shadow-sm border border-gray-100">
@@ -166,7 +105,7 @@ const DashboardHome = () => {
                     </div>
                 </div>
 
-                 {/* Card 3: White */}
+                 {/* Card 3: White (Hidden on tiny screens, shown on tablet+) */}
                  <div className="bg-white rounded-[30px] p-6 text-slate-800 shadow-sm border border-gray-100 hidden sm:block">
                     <div className="flex justify-between items-start mb-6">
                         <span className="text-sm font-medium text-gray-500">Ended Projects</span>
@@ -181,7 +120,7 @@ const DashboardHome = () => {
                     </div>
                 </div>
 
-                {/* Card 4: White */}
+                {/* Card 4: White (Hidden on tablet, shown on XL screens) */}
                 <div className="bg-white rounded-[30px] p-6 text-slate-800 shadow-sm border border-gray-100 hidden xl:block">
                      <div className="flex justify-between items-start mb-6">
                         <span className="text-sm font-medium text-gray-500">Pending</span>
@@ -195,6 +134,7 @@ const DashboardHome = () => {
             </div>
 
             {/* 3. MAIN CONTENT GRID */}
+            {/* Responsive: Stacks on mobile/tablet, side-by-side on large desktops */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
                 {/* LEFT: Team Collaboration (Workload) */}
@@ -207,13 +147,13 @@ const DashboardHome = () => {
                         </Link>
                     </div>
 
+                    {/* Responsive Table Container */}
                     <div className="overflow-x-auto">
-                        {/* USE fullWorkload INSTEAD OF stats.workload */}
-                        {fullWorkload && fullWorkload.length > 0 ? (
+                        {stats.workload && stats.workload.length > 0 ? (
                             <table className="w-full text-left border-separate border-spacing-y-4 min-w-[500px]">
                                 <tbody>
-                                    {fullWorkload.map((member, index) => {
-                                        const count = member.count || 0; // This is now merged
+                                    {stats.workload.map((member, index) => {
+                                        const count = member.count || member.taskCount || 0;
                                         const capacity = member.capacity || 5;
                                         const isOverloaded = count > capacity;
                                         const avatarSeed = member._id || index; 
@@ -233,6 +173,7 @@ const DashboardHome = () => {
                                                     </div>
                                                     <div className="text-xs text-gray-400">Load: {count} / {capacity} Tasks</div>
                                                 </td>
+                                                {/* Hide status badge on very small screens if needed, currently shown due to min-w */}
                                                 <td className="px-4">
                                                     {isOverloaded ? (
                                                         <span className="badge bg-red-50 text-red-500 border-none px-2 md:px-3 py-2 text-[10px] md:text-xs font-bold">Overloaded</span>
@@ -251,10 +192,7 @@ const DashboardHome = () => {
                                 </tbody>
                             </table>
                         ) : (
-                             <div className="text-center py-10 text-gray-400">
-                                <p>No active team data.</p>
-                                <p className="text-xs mt-2">Add a member to see them here.</p>
-                             </div>
+                             <div className="text-center py-10 text-gray-400">No active team data.</div>
                         )}
                     </div>
                 </div>
