@@ -16,6 +16,7 @@ Status (Pending / In Progress / Done)
 Smart Assignment:
 Visual indicators show current load vs. capacity (e.g., 3/5).
 Overload Warning: If you assign a task to a full member, the system warns you: "Riya has 4 tasks but capacity is 3. Assign anyway?"
+
 3. ⚖️ Smart Load Balancing (Auto-Reassignment)
 A unique feature to resolve bottlenecks with one click.
 
@@ -34,10 +35,10 @@ Activity Log: A history of reassignments (e.g., "10:30 AM — Task 'UI Design' r
 🛠️ Tech Stack
 (Please update this section based on your actual code)
 
-Frontend: React.js / Vue.js / HTML & JS
-Backend: Node.js (Express) / Python (Django/Flask)
-Database: MongoDB / PostgreSQL / MySQL
-Styling: CSS Modules / Tailwind CSS / Bootstrap
+Frontend: React.js / HTML & JS
+Backend: Node.js (Express) 
+Database: MongoDB 
+Styling:  Tailwind CSS 
 
 
 
