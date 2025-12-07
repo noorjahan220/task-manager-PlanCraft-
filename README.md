@@ -9,7 +9,6 @@
 
 ## 🔗 Live Links
 - **Live Site:** [Click Here to Visit](#) *(Add your link here)*
-- **Server API:** [Server Link](#) *(Add your link here)*
 
 ## 📖 Project Overview
 **Smart Task Manager** is a web application designed to streamline project management while actively preventing team burnout. 
