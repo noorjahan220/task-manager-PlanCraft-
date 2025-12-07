@@ -8,7 +8,7 @@
 <br/>
 
 ## 🔗 Live Links
-- **Live Site:** [Click Here to Visit]([https://task-manager-60ea7.web.app/login])) 
+- **Live Site:** [Click Here to Visit](https://task-manager-60ea7.web.app/login)
 
 ## 📖 Project Overview
 **Smart Task Manager** is a web application designed to streamline project management while actively preventing team burnout. 
